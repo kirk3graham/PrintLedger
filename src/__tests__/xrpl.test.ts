@@ -8,6 +8,7 @@ import {
   NFT_FLAG_BURNABLE,
   NFT_FLAG_TRANSFERABLE,
 } from '../lib/xrpl'
+import { decodeMetadataUri } from '../lib/utils'
 import type { MintParams, NFTMetadata } from '../types'
 
 const MOCK_ADDRESS = 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh'
@@ -69,8 +70,6 @@ describe('buildMetadataUri', () => {
   })
 
   it('encodes metadata that can be decoded', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { decodeMetadataUri } = require('../lib/utils')
     const uri = buildMetadataUri(MOCK_METADATA)
     const decoded = decodeMetadataUri(uri)
     expect(decoded).toEqual(MOCK_METADATA)
