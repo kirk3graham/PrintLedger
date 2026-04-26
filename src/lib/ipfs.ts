@@ -26,7 +26,7 @@ export async function uploadFileToPinata(file: File): Promise<string> {
   const config = getPinataConfig()
   if (!config) {
     // Dev mock — return a deterministic fake CID
-    return `bafybeimock${btoa(file.name).replace(/[^a-z0-9]/gi, '').slice(0, 20).toLowerCase()}`
+    return `bafybeimock${encodeURIComponent(file.name).replace(/[^a-z0-9]/gi, '').slice(0, 20).toLowerCase()}`
   }
 
   const form = new FormData()
@@ -58,7 +58,7 @@ export async function uploadFileToPinata(file: File): Promise<string> {
 export async function uploadJsonToPinata(json: Record<string, unknown>, name: string): Promise<string> {
   const config = getPinataConfig()
   if (!config) {
-    return `bafybeimockjson${btoa(name).replace(/[^a-z0-9]/gi, '').slice(0, 16).toLowerCase()}`
+    return `bafybeimockjson${encodeURIComponent(name).replace(/[^a-z0-9]/gi, '').slice(0, 16).toLowerCase()}`
   }
 
   const response = await fetch(`${PINATA_API}/pinning/pinJSONToIPFS`, {

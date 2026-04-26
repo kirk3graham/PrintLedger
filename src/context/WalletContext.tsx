@@ -21,8 +21,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const disconnect = useCallback(() => {
-    setState({ address: null, network: state.network, connected: false })
-  }, [state.network])
+    setState((prev) => ({ address: null, network: prev.network, connected: false }))
+  }, [])
 
   const setNetwork = useCallback((network: WalletNetwork) => {
     setState((prev) => ({ ...prev, network }))

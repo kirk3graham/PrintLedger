@@ -12,7 +12,7 @@ export function useToast() {
 
   const toast = useCallback(
     ({ title, description, variant = 'default' }: Omit<Toast, 'id'>) => {
-      const id = Math.random().toString(36).slice(2)
+      const id = crypto.randomUUID()
       setToasts((prev) => [...prev, { id, title, description, variant }])
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id))

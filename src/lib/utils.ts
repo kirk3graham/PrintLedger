@@ -32,7 +32,11 @@ export function truncateAddress(address: string, start = 6, end = 4): string {
  */
 export function encodeMetadataUri(metadata: Record<string, unknown>): string {
   const json = JSON.stringify(metadata)
-  return Buffer.from(json, 'utf8').toString('hex').toUpperCase()
+  const bytes = new TextEncoder().encode(json)
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase()
 }
 
 /**
@@ -40,7 +44,11 @@ export function encodeMetadataUri(metadata: Record<string, unknown>): string {
  */
 export function decodeMetadataUri(hexUri: string): Record<string, unknown> | null {
   try {
-    const json = Buffer.from(hexUri, 'hex').toString('utf8')
+    const bytes = Uint8Array.from(
+      (hexUri.match(/.{1,2}/g) ?? []),
+      (byte) => parseInt(byte, 16),
+    )
+    const json = new TextDecoder().decode(bytes)
     return JSON.parse(json) as Record<string, unknown>
   } catch {
     return null
