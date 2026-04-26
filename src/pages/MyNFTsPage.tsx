@@ -8,6 +8,7 @@ import { useXRPL } from '@/hooks/useXRPL'
 import { fetchAccountNFTs, fetchNFTSellOffers } from '@/lib/xrpl'
 import { decodeMetadataUri } from '@/lib/utils'
 import type { NFTListing, NFTMetadata } from '@/types'
+import type { AccountNFToken } from 'xrpl'
 
 export function MyNFTsPage() {
   const { address, connected } = useWallet()
@@ -19,18 +20,18 @@ export function MyNFTsPage() {
     await withClient(async (client) => {
       const rawNFTs = await fetchAccountNFTs(client, address)
       const resolved: NFTListing[] = await Promise.all(
-        rawNFTs.map(async (nft: Record<string, unknown>) => {
-          const uriHex = (nft['URI'] as string | undefined) ?? ''
+        rawNFTs.map(async (nft: AccountNFToken) => {
+          const uriHex = nft.URI ?? ''
           const metadata = uriHex ? (decodeMetadataUri(uriHex) as NFTMetadata | null) : null
-          const offers = await fetchNFTSellOffers(client, nft['NFTokenID'] as string)
+          const offers = await fetchNFTSellOffers(client, nft.NFTokenID)
           return {
-            nftTokenId: nft['NFTokenID'] as string,
-            issuer: nft['Issuer'] as string,
+            nftTokenId: nft.NFTokenID,
+            issuer: nft.Issuer,
             owner: address,
             metadata,
-            transferFee: (nft['TransferFee'] as number | undefined) ?? 0,
+            transferFee: 0,
             burnable: false,
-            flags: (nft['Flags'] as number | undefined) ?? 0,
+            flags: nft.Flags,
             sellOffers: offers,
           }
         }),

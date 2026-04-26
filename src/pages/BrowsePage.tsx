@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { NFTCard } from '@/components/browse/NFTCard'
 import { useXRPL } from '@/hooks/useXRPL'
 import { fetchNFTSellOffers } from '@/lib/xrpl'
-import { decodeMetadataUri } from '@/lib/utils'
 import type { NFTListing } from '@/types'
 
 // Placeholder — in production this would call the Clio indexer REST endpoint.
