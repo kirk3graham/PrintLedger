@@ -20,12 +20,12 @@ export function ConnectWallet() {
   const [readOnlyAddress, setReadOnlyAddress] = useState('')
   const [addressError, setAddressError] = useState('')
 
-  // In a real Xaman integration this would call the XUMM API to create a
+  // In a real Xaman integration this would call the Xaman API to create a
   // Sign-In payload and open the returned deep-link.  For the MVP we
   // demonstrate the deep-link pattern and fall back to manual entry.
   const handleXamanConnect = () => {
     const xamanSignInUrl =
-      'https://xumm.app/sign/sign-in'
+      'https://xaman.app/sign/sign-in'
     window.open(xamanSignInUrl, '_blank', 'noopener,noreferrer')
   }
 

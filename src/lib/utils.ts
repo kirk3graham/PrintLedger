@@ -58,11 +58,11 @@ export function decodeMetadataUri(hexUri: string): Record<string, unknown> | nul
 /**
  * Build the Xaman deep-link URL for a given JSON payload.
  * Returns a URL string that opens Xaman on mobile to sign the payload.
- * In a real integration this goes through the Xaman SDK/XUMM API;
+ * In a real integration this goes through the Xaman SDK/API;
  * here we use the universal link format for demonstration.
  */
 export function buildXamanDeepLink(payloadUuid: string): string {
-  return `https://xumm.app/sign/${payloadUuid}`
+  return `https://xaman.app/sign/${payloadUuid}`
 }
 
 /**
