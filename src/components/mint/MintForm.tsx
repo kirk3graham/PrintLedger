@@ -106,7 +106,7 @@ export function MintForm() {
       // Open the signing modal immediately (shows spinner while payload loads)
       setModalOpen(true)
 
-      const payload = await createPayload(tx as unknown as Record<string, unknown>, (result) => {
+      const payload = await createPayload(tx, (result) => {
         if (result.signed) {
           setSigningStatus('signed')
           setSigningTxid(result.txid)

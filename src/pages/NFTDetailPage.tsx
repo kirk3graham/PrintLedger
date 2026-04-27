@@ -90,7 +90,7 @@ export function NFTDetailPage() {
   }, [checkOwnership, refreshOffers])
 
   const openSigningModal = useCallback(
-    async (tx: Record<string, unknown>, title: string) => {
+    async (tx: object, title: string) => {
       setSigningPayload(null)
       setSigningStatus('pending')
       setSigningTxid(undefined)
@@ -124,7 +124,7 @@ export function NFTDetailPage() {
 
     const tx = buildAcceptOfferTx(address, offer.offerIndex, brokerFee)
     console.info('NFTokenAcceptOffer tx:', tx)
-    await openSigningModal(tx as unknown as Record<string, unknown>, 'Sign Purchase')
+    await openSigningModal(tx, 'Sign Purchase')
   }
 
   const handleBurn = async () => {
@@ -132,7 +132,7 @@ export function NFTDetailPage() {
     setError(null)
     const tx = buildBurnTx(address, nft.nftTokenId)
     console.info('NFTokenBurn tx:', tx)
-    await openSigningModal(tx as unknown as Record<string, unknown>, 'Sign License Revocation')
+    await openSigningModal(tx, 'Sign License Revocation')
   }
 
   const handleDownload = async () => {

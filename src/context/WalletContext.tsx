@@ -19,7 +19,7 @@ interface WalletContextValue extends WalletState {
    * Calls onResolved when the user signs or rejects the payload.
    */
   createPayload: (
-    tx: Record<string, unknown>,
+    tx: object,
     onResolved: (result: XamanPayloadResult) => void,
   ) => Promise<XamanPayloadInfo>
 }
@@ -52,7 +52,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const createPayload = useCallback(
     (
-      tx: Record<string, unknown>,
+      tx: object,
       onResolved: (result: XamanPayloadResult) => void,
     ): Promise<XamanPayloadInfo> => createXamanPayload(tx, onResolved),
     [],

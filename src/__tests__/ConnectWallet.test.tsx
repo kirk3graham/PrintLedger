@@ -42,7 +42,7 @@ describe('ConnectWallet', () => {
       xamanSignIn: jest.Mock
     }
     // Make sign-in hang indefinitely so we can observe loading state
-    let resolveSignIn: (v: { account: string }) => void
+    let resolveSignIn: (v: { account: string }) => void = () => {}
     xamanSignIn.mockImplementationOnce(
       () => new Promise<{ account: string }>((res) => { resolveSignIn = res }),
     )

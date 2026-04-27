@@ -71,6 +71,13 @@ export interface XamanPayloadResult {
   account?: string
 }
 
+/** Shape of the data object returned by a Xaman signing subscription event. */
+interface XamanSignedData {
+  signed?: boolean
+  txid?: string | null
+  account?: string | null
+}
+
 /**
  * Creates a Xaman signing payload for the given XRPL transaction object.
  *
@@ -82,7 +89,7 @@ export interface XamanPayloadResult {
  * initialised).
  */
 export async function createXamanPayload(
-  tx: Record<string, unknown>,
+  tx: object,
   onResolved: (result: XamanPayloadResult) => void,
 ): Promise<XamanPayloadInfo> {
   const xumm = getXamanSdk()
@@ -103,14 +110,12 @@ export async function createXamanPayload(
     },
   )
 
-  // PayloadAndSubscription is wrapped by Promisified but JS flattens the promise chain.
-  const { created, resolved } = subscription as Awaited<typeof subscription>
+  const { created, resolved } = subscription
   if (!created) throw new Error('Failed to create Xaman payload.')
 
   resolved
     ?.then((data) => {
-      type SignedData = { signed?: boolean; txid?: string | null; account?: string | null }
-      const d = data as SignedData | null
+      const d = data as XamanSignedData | null
       if (d && typeof d.signed === 'boolean') {
         onResolved({
           signed: d.signed,
