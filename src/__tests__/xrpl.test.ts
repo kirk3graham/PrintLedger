@@ -5,6 +5,9 @@ import {
   buildBurnTx,
   buildPaymentTx,
   buildMetadataUri,
+  fetchNFTInfo,
+  fetchListings,
+  fetchNFTHistory,
   NFT_FLAG_BURNABLE,
   NFT_FLAG_TRANSFERABLE,
 } from '../lib/xrpl'
@@ -128,5 +131,204 @@ describe('buildPaymentTx', () => {
     expect(tx.Account).toBe(MOCK_ADDRESS)
     expect(tx.Destination).toBe('rDest456')
     expect(tx.Amount).toBe('1000000')
+  })
+})
+
+// ─── Mock client helper ──────────────────────────────────────────────────────
+
+function makeMockClient(requestFn: (req: Record<string, unknown>) => unknown) {
+  return {
+    request: (req: unknown) => Promise.resolve(requestFn(req as Record<string, unknown>)),
+    isConnected: () => true,
+  }
+}
+
+// ─── fetchNFTInfo ─────────────────────────────────────────────────────────────
+
+describe('fetchNFTInfo', () => {
+  it('maps a nft_info response to NFTInfo', async () => {
+    const client = makeMockClient(() => ({
+      result: {
+        nft_id: MOCK_NFT_ID,
+        issuer: MOCK_ADDRESS,
+        owner: MOCK_ADDRESS,
+        uri: '68747470733A2F2F6578616D706C652E636F6D',
+        flags: 0x00000009,
+        transfer_fee: 5000,
+        nft_taxon: 0,
+        nft_serial: 1,
+        is_burned: false,
+      },
+    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const info = await fetchNFTInfo(client as any, MOCK_NFT_ID)
+    expect(info).not.toBeNull()
+    expect(info!.nftTokenId).toBe(MOCK_NFT_ID)
+    expect(info!.issuer).toBe(MOCK_ADDRESS)
+    expect(info!.owner).toBe(MOCK_ADDRESS)
+    expect(info!.transferFee).toBe(5000)
+    expect(info!.flags).toBe(0x00000009)
+    expect(info!.isBurned).toBe(false)
+  })
+
+  it('returns null when the server throws', async () => {
+    const client = makeMockClient(() => { throw new Error('not found') })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const info = await fetchNFTInfo(client as any, MOCK_NFT_ID)
+    expect(info).toBeNull()
+  })
+})
+
+// ─── fetchListings ────────────────────────────────────────────────────────────
+
+describe('fetchListings', () => {
+  it('resolves nfts_by_issuer response into NFTListing[]', async () => {
+    const ISSUER = MOCK_ADDRESS
+    const URI = buildMetadataUri(MOCK_METADATA)
+
+    const client = makeMockClient((req) => {
+      if ((req as Record<string, unknown>).command === 'nfts_by_issuer') {
+        return {
+          result: {
+            nfts: [
+              {
+                NFTokenID: MOCK_NFT_ID,
+                Issuer: ISSUER,
+                URI,
+                Flags: NFT_FLAG_BURNABLE | NFT_FLAG_TRANSFERABLE,
+                NFTokenTaxon: 1,
+                nft_serial: 1,
+              },
+            ],
+          },
+        }
+      }
+      // nft_sell_offers — no offers
+      return { result: { offers: [] } }
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const listings = await fetchListings(client as any, ISSUER)
+    expect(listings).toHaveLength(1)
+    expect(listings[0].nftTokenId).toBe(MOCK_NFT_ID)
+    expect(listings[0].issuer).toBe(ISSUER)
+    expect(listings[0].metadata?.name).toBe(MOCK_METADATA.name)
+    expect(listings[0].burnable).toBe(true)
+    expect(listings[0].sellOffers).toEqual([])
+  })
+
+  it('falls back to account_nfts when nfts_by_issuer throws', async () => {
+    const ISSUER = MOCK_ADDRESS
+    const URI = buildMetadataUri(MOCK_METADATA)
+
+    const client = makeMockClient((req) => {
+      const cmd = (req as Record<string, unknown>).command
+      if (cmd === 'nfts_by_issuer') throw new Error('not supported')
+      if (cmd === 'account_nfts') {
+        return {
+          result: {
+            account_nfts: [
+              {
+                NFTokenID: MOCK_NFT_ID,
+                Issuer: ISSUER,
+                URI,
+                Flags: NFT_FLAG_TRANSFERABLE,
+                NFTokenTaxon: 1,
+                nft_serial: 1,
+              },
+            ],
+          },
+        }
+      }
+      return { result: { offers: [] } }
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const listings = await fetchListings(client as any, ISSUER)
+    expect(listings).toHaveLength(1)
+    expect(listings[0].nftTokenId).toBe(MOCK_NFT_ID)
+  })
+
+  it('attaches sell offers to each listing', async () => {
+    const ISSUER = MOCK_ADDRESS
+    const URI = buildMetadataUri(MOCK_METADATA)
+
+    const client = makeMockClient((req) => {
+      const cmd = (req as Record<string, unknown>).command
+      if (cmd === 'account_nfts') {
+        return {
+          result: {
+            account_nfts: [
+              { NFTokenID: MOCK_NFT_ID, Issuer: ISSUER, URI, Flags: 0x8, NFTokenTaxon: 1, nft_serial: 1 },
+            ],
+          },
+        }
+      }
+      if (cmd === 'nft_sell_offers') {
+        return { result: { offers: [{ index: 'IDX1', amount: '3000000', flags: 1 }] } }
+      }
+      throw new Error('unexpected')
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const listings = await fetchListings(client as any, ISSUER)
+    expect(listings[0].sellOffers).toHaveLength(1)
+  })
+})
+
+// ─── fetchNFTHistory ──────────────────────────────────────────────────────────
+
+describe('fetchNFTHistory', () => {
+  it('maps nft_history transactions to TransferRecord[]', async () => {
+    const client = makeMockClient(() => ({
+      result: {
+        transactions: [
+          {
+            tx: {
+              TransactionType: 'NFTokenMint',
+              hash: 'TXHASH001',
+              Account: MOCK_ADDRESS,
+              date: 0,
+            },
+          },
+          {
+            tx: {
+              TransactionType: 'NFTokenAcceptOffer',
+              hash: 'TXHASH002',
+              Account: MOCK_ADDRESS,
+              Destination: 'rDest123',
+              NFTokenSellOffer: 'OFFERIDX',
+              date: 1000,
+            },
+          },
+        ],
+      },
+    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const records = await fetchNFTHistory(client as any, MOCK_NFT_ID)
+    expect(records).toHaveLength(2)
+    expect(records[0].txHash).toBe('TXHASH001')
+    expect(records[1].txHash).toBe('TXHASH002')
+    expect(records[1].to).toBe('rDest123')
+    expect(records[1].offerIndex).toBe('OFFERIDX')
+  })
+
+  it('filters out non-NFT transactions', async () => {
+    const client = makeMockClient(() => ({
+      result: {
+        transactions: [
+          { tx: { TransactionType: 'Payment', hash: 'TXPAY', Account: MOCK_ADDRESS, date: 0 } },
+          { tx: { TransactionType: 'NFTokenMint', hash: 'TXMINT', Account: MOCK_ADDRESS, date: 0 } },
+        ],
+      },
+    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const records = await fetchNFTHistory(client as any, MOCK_NFT_ID)
+    expect(records).toHaveLength(1)
+    expect(records[0].txHash).toBe('TXMINT')
+  })
+
+  it('returns empty array when nft_history is not supported', async () => {
+    const client = makeMockClient(() => { throw new Error('unknown command') })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const records = await fetchNFTHistory(client as any, MOCK_NFT_ID)
+    expect(records).toEqual([])
   })
 })
