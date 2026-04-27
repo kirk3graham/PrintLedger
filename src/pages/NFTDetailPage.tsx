@@ -20,7 +20,7 @@ import {
 } from '@/lib/xrpl'
 import { downloadEvidenceFile } from '@/lib/evidence'
 import { dropsToXrp, formatTransferFee, buildXamanDeepLink, decodeMetadataUri } from '@/lib/utils'
-import type { NFTListing, SellOffer, BrokerFeeConfig, TransferRecord } from '@/types'
+import type { NFTListing, NFTMetadata, SellOffer, BrokerFeeConfig, TransferRecord } from '@/types'
 
 export function NFTDetailPage() {
   const { tokenId } = useParams<{ tokenId: string }>()
@@ -46,7 +46,7 @@ export function NFTDetailPage() {
     await withClient(async (client) => {
       const info = await fetchNFTInfo(client, tokenId)
       if (!info) return
-      const metadata = info.uri ? (decodeMetadataUri(info.uri) as import('@/types').NFTMetadata | null) : null
+      const metadata = info.uri ? (decodeMetadataUri(info.uri) as NFTMetadata | null) : null
       const liveOffers = await fetchNFTSellOffers(client, tokenId)
       const liveHistory = await fetchNFTHistory(client, tokenId)
       setNft({
@@ -82,8 +82,11 @@ export function NFTDetailPage() {
 
   useEffect(() => {
     void loadNFT()
+  }, [loadNFT])
+
+  useEffect(() => {
     void checkOwnership()
-  }, [loadNFT, checkOwnership])
+  }, [checkOwnership])
 
   // Re-fetch offers independently when wallet connects/changes
   useEffect(() => {
