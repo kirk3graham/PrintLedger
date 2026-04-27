@@ -1,6 +1,7 @@
 import { Client, NFTokenMint, NFTokenCreateOffer, NFTokenAcceptOffer, NFTokenBurn, Payment, convertStringToHex } from 'xrpl'
-import type { NFTMetadata, MintParams, SellOffer, ClaimEvidence, TransferRecord } from '../types'
-import { encodeMetadataUri } from './utils'
+import type { AccountNFToken } from 'xrpl'
+import type { NFTMetadata, MintParams, SellOffer, ClaimEvidence, TransferRecord, NFTListing } from '../types'
+import { encodeMetadataUri, decodeMetadataUri } from './utils'
 
 // ─── Client Singleton ────────────────────────────────────────────────────────
 
@@ -150,6 +151,120 @@ export async function fetchNFTSellOffers(client: Client, nftTokenId: string): Pr
 export async function verifyOwnership(client: Client, account: string, nftTokenId: string): Promise<boolean> {
   const nfts = await fetchAccountNFTs(client, account)
   return nfts.some((nft: { NFTokenID: string }) => nft.NFTokenID === nftTokenId)
+}
+
+// ─── NFT Info ─────────────────────────────────────────────────────────────────
+
+export interface NFTInfo {
+  nftTokenId: string
+  issuer: string
+  owner: string
+  uri: string
+  flags: number
+  transferFee: number
+  nftTaxon: number
+  nftSerial: number
+  isBurned: boolean
+}
+
+export async function fetchNFTInfo(client: Client, nftTokenId: string): Promise<NFTInfo | null> {
+  try {
+    const response = await client.request({
+      command: 'nft_info',
+      nft_id: nftTokenId,
+    } as unknown as Parameters<typeof client.request>[0])
+    const r = response.result as unknown as Record<string, unknown>
+    return {
+      nftTokenId: r['nft_id'] as string,
+      issuer: r['issuer'] as string,
+      owner: r['owner'] as string,
+      uri: (r['uri'] as string | undefined) ?? '',
+      flags: (r['flags'] as number | undefined) ?? 0,
+      transferFee: (r['transfer_fee'] as number | undefined) ?? 0,
+      nftTaxon: (r['nft_taxon'] as number | undefined) ?? 0,
+      nftSerial: (r['nft_serial'] as number | undefined) ?? 0,
+      isBurned: (r['is_burned'] as boolean | undefined) ?? false,
+    }
+  } catch {
+    return null
+  }
+}
+
+// ─── Browse Listings ──────────────────────────────────────────────────────────
+
+/**
+ * Fetch all NFTs minted by `issuer`, decode their metadata URIs, and attach
+ * any active sell offers.  Tries the Clio-specific `nfts_by_issuer` command
+ * first and falls back to standard `account_nfts` when unavailable.
+ */
+export async function fetchListings(client: Client, issuer: string): Promise<NFTListing[]> {
+  let rawNFTs: AccountNFToken[] = []
+
+  try {
+    const response = await client.request({
+      command: 'nfts_by_issuer',
+      issuer,
+    } as unknown as Parameters<typeof client.request>[0])
+    rawNFTs = ((response.result as unknown as Record<string, unknown>)['nfts'] as AccountNFToken[] | undefined) ?? []
+  } catch {
+    rawNFTs = await fetchAccountNFTs(client, issuer)
+  }
+
+  return Promise.all(
+    rawNFTs.map(async (nft: AccountNFToken) => {
+      const uriHex = nft.URI ?? ''
+      const metadata = uriHex ? (decodeMetadataUri(uriHex) as NFTMetadata | null) : null
+      const offers = await fetchNFTSellOffers(client, nft.NFTokenID)
+      const flags = (nft.Flags as number | undefined) ?? 0
+      return {
+        nftTokenId: nft.NFTokenID,
+        issuer: nft.Issuer,
+        owner: nft.Issuer,
+        metadata,
+        transferFee: (nft as unknown as Record<string, unknown>)['TransferFee'] as number | undefined ?? 0,
+        burnable: (flags & NFT_FLAG_BURNABLE) !== 0,
+        flags,
+        sellOffers: offers,
+      } satisfies NFTListing
+    }),
+  )
+}
+
+// ─── NFT History ──────────────────────────────────────────────────────────────
+
+/**
+ * Fetch the on-chain transaction history for a specific NFT.
+ * Uses the Clio `nft_history` command when available; returns an empty array
+ * when the server does not support it.
+ */
+export async function fetchNFTHistory(client: Client, nftTokenId: string): Promise<TransferRecord[]> {
+  try {
+    const response = await client.request({
+      command: 'nft_history',
+      nft_id: nftTokenId,
+    } as unknown as Parameters<typeof client.request>[0])
+
+    const transactions =
+      ((response.result as unknown as Record<string, unknown>)['transactions'] as Array<Record<string, unknown>>) ?? []
+
+    const records: TransferRecord[] = []
+    for (const entry of transactions) {
+      const tx = (entry['tx'] as Record<string, unknown> | undefined) ?? entry
+      const type = tx['TransactionType'] as string | undefined
+      if (type === 'NFTokenMint' || type === 'NFTokenAcceptOffer') {
+        records.push({
+          txHash: (tx['hash'] as string | undefined) ?? '',
+          from: (tx['Account'] as string | undefined) ?? '',
+          to: (tx['Destination'] as string | undefined) ?? '',
+          timestamp: new Date(((tx['date'] as number | undefined) ?? 0) * 1000 + 946684800000).toISOString(),
+          offerIndex: tx['NFTokenSellOffer'] as string | undefined,
+        })
+      }
+    }
+    return records
+  } catch {
+    return []
+  }
 }
 
 export async function fetchTransactionHistory(
