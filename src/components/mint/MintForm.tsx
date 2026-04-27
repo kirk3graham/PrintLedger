@@ -11,11 +11,13 @@ import { Badge } from '@/components/ui/badge'
 import { useWallet } from '@/context/WalletContext'
 import { buildMintTx } from '@/lib/xrpl'
 import { uploadFileToPinata } from '@/lib/ipfs'
-import { buildXamanDeepLink, percentToTransferFee, formatTransferFee } from '@/lib/utils'
+import { percentToTransferFee, formatTransferFee } from '@/lib/utils'
+import { XamanSigningModal, type SigningStatus } from '@/components/wallet/XamanSigningModal'
+import type { XamanPayloadInfo } from '@/lib/xaman'
 import type { MintParams, NFTMetadata } from '@/types'
 
 export function MintForm() {
-  const { address, connected } = useWallet()
+  const { address, connected, createPayload } = useWallet()
 
   // Metadata fields
   const [name, setName] = useState('')
@@ -38,8 +40,13 @@ export function MintForm() {
   const [imageFile, setImageFile] = useState<File | null>(null)
 
   const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Xaman signing modal state
+  const [signingPayload, setSigningPayload] = useState<XamanPayloadInfo | null>(null)
+  const [signingStatus, setSigningStatus] = useState<SigningStatus>('pending')
+  const [signingTxid, setSigningTxid] = useState<string | undefined>()
+  const [modalOpen, setModalOpen] = useState(false)
 
   const handleMint = async () => {
     if (!connected || !address) {
@@ -57,13 +64,15 @@ export function MintForm() {
 
     setLoading(true)
     setError(null)
-    setStatus('Uploading model file to IPFS…')
 
     try {
+      setSigningPayload(null)
+      setSigningStatus('pending')
+      setSigningTxid(undefined)
+
       const modelCid = await uploadFileToPinata(modelFile)
       let imageCid = ''
       if (imageFile) {
-        setStatus('Uploading preview image to IPFS…')
         imageCid = await uploadFileToPinata(imageFile)
       }
 
@@ -91,18 +100,24 @@ export function MintForm() {
         quantity,
       }
 
-      setStatus('Preparing transaction…')
       const tx = buildMintTx(address, params)
-
-      // In production: send `tx` to Xaman SDK to create a payload and get a UUID.
-      // For MVP we show the deep-link pattern.
-      const payloadUuid = 'demo-uuid-' + Date.now()
-      const deepLink = buildXamanDeepLink(payloadUuid)
-
-      setStatus(`Transaction ready. Open Xaman to sign:\n${deepLink}`)
       console.info('NFTokenMint tx:', JSON.stringify(tx, null, 2))
+
+      // Open the signing modal immediately (shows spinner while payload loads)
+      setModalOpen(true)
+
+      const payload = await createPayload(tx, (result) => {
+        if (result.signed) {
+          setSigningStatus('signed')
+          setSigningTxid(result.txid)
+        } else {
+          setSigningStatus('rejected')
+        }
+      })
+      setSigningPayload(payload)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      setModalOpen(false)
     } finally {
       setLoading(false)
     }
@@ -312,12 +327,7 @@ export function MintForm() {
         </CardContent>
       </Card>
 
-      {/* Status / error */}
-      {status && (
-        <div className="rounded-md bg-muted p-4 text-sm whitespace-pre-wrap font-mono">
-          {status}
-        </div>
-      )}
+      {/* Error */}
       {error && (
         <div className="rounded-md bg-destructive/10 border border-destructive/30 p-4 text-sm text-destructive">
           {error}
@@ -338,6 +348,15 @@ export function MintForm() {
           Connect your wallet to mint.
         </p>
       )}
+
+      <XamanSigningModal
+        open={modalOpen}
+        payload={signingPayload}
+        status={signingStatus}
+        txid={signingTxid}
+        title="Sign Mint Transaction"
+        onClose={() => setModalOpen(false)}
+      />
     </div>
   )
 }

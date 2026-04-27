@@ -33,7 +33,8 @@
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.164.1",
-    "xrpl": "^3.0.0"
+    "xrpl": "^3.0.0",
+    "xumm": "^1.8.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",
