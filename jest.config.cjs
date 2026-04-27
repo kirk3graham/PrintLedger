@@ -7,6 +7,7 @@ module.exports = {
     '^three$': '<rootDir>/src/__mocks__/three.ts',
     '^@react-three/fiber$': '<rootDir>/src/__mocks__/@react-three/fiber.tsx',
     '^@react-three/drei$': '<rootDir>/src/__mocks__/@react-three/drei.tsx',
+    '^xumm$': '<rootDir>/src/__mocks__/xumm.ts',
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {

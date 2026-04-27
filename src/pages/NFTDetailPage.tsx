@@ -17,7 +17,9 @@ import {
   NFT_FLAG_BURNABLE,
 } from '@/lib/xrpl'
 import { downloadEvidenceFile } from '@/lib/evidence'
-import { dropsToXrp, formatTransferFee, buildXamanDeepLink } from '@/lib/utils'
+import { dropsToXrp, formatTransferFee } from '@/lib/utils'
+import { XamanSigningModal, type SigningStatus } from '@/components/wallet/XamanSigningModal'
+import type { XamanPayloadInfo } from '@/lib/xaman'
 import type { NFTListing, SellOffer, BrokerFeeConfig } from '@/types'
 
 // In production, look up the NFT from the indexer by token ID.
@@ -44,14 +46,20 @@ const DEMO_NFT: NFTListing = {
 
 export function NFTDetailPage() {
   const { tokenId } = useParams<{ tokenId: string }>()
-  const { address, connected } = useWallet()
+  const { address, connected, createPayload } = useWallet()
   const { withClient, loading } = useXRPL()
 
   const [nft] = useState<NFTListing>(DEMO_NFT)
   const [isOwner, setIsOwner] = useState(false)
   const [offers, setOffers] = useState<SellOffer[]>(DEMO_NFT.sellOffers)
-  const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Xaman signing modal state
+  const [signingPayload, setSigningPayload] = useState<XamanPayloadInfo | null>(null)
+  const [signingStatus, setSigningStatus] = useState<SigningStatus>('pending')
+  const [signingTxid, setSigningTxid] = useState<string | undefined>()
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalTitle, setModalTitle] = useState('Sign with Xaman')
 
   // Broker fee opt-in
   const [brokerConfig, setBrokerConfig] = useState<BrokerFeeConfig>({
@@ -81,6 +89,32 @@ export function NFTDetailPage() {
     void refreshOffers()
   }, [checkOwnership, refreshOffers])
 
+  const openSigningModal = useCallback(
+    async (tx: Record<string, unknown>, title: string) => {
+      setSigningPayload(null)
+      setSigningStatus('pending')
+      setSigningTxid(undefined)
+      setModalTitle(title)
+      setModalOpen(true)
+
+      try {
+        const payload = await createPayload(tx, (result) => {
+          if (result.signed) {
+            setSigningStatus('signed')
+            setSigningTxid(result.txid)
+          } else {
+            setSigningStatus('rejected')
+          }
+        })
+        setSigningPayload(payload)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+        setModalOpen(false)
+      }
+    },
+    [createPayload],
+  )
+
   const handleBuy = async (offer: SellOffer) => {
     if (!address) { setError('Connect your wallet first.'); return }
     setError(null)
@@ -89,20 +123,16 @@ export function NFTDetailPage() {
       : undefined
 
     const tx = buildAcceptOfferTx(address, offer.offerIndex, brokerFee)
-    const payloadUuid = 'buy-' + Date.now()
-    const deepLink = buildXamanDeepLink(payloadUuid)
-    setStatus(`Open Xaman to complete purchase:\n${deepLink}\n\nTransaction preview:\n${JSON.stringify(tx, null, 2)}`)
     console.info('NFTokenAcceptOffer tx:', tx)
+    await openSigningModal(tx as unknown as Record<string, unknown>, 'Sign Purchase')
   }
 
   const handleBurn = async () => {
     if (!address) { setError('Connect your wallet first.'); return }
     setError(null)
     const tx = buildBurnTx(address, nft.nftTokenId)
-    const payloadUuid = 'burn-' + Date.now()
-    const deepLink = buildXamanDeepLink(payloadUuid)
-    setStatus(`Open Xaman to revoke license:\n${deepLink}`)
     console.info('NFTokenBurn tx:', tx)
+    await openSigningModal(tx as unknown as Record<string, unknown>, 'Sign License Revocation')
   }
 
   const handleDownload = async () => {
@@ -111,7 +141,6 @@ export function NFTDetailPage() {
       return
     }
     // In production: call a gated endpoint that verifies ownership on-chain.
-    setStatus(`Ownership verified ✓\nDownloading from: ${nft.metadata?.modelUri ?? 'unknown'}`)
     // For demo: open the IPFS gateway URL
     if (nft.metadata?.modelUri) {
       const url = nft.metadata.modelUri.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/')
@@ -130,7 +159,6 @@ export function NFTDetailPage() {
         'demo-mint-tx-hash',
       )
       downloadEvidenceFile(evidence)
-      setStatus('Claim evidence package downloaded.')
     })
   }
 
@@ -292,17 +320,21 @@ export function NFTDetailPage() {
         </div>
       </div>
 
-      {/* Status / error */}
-      {status && (
-        <div className="rounded-md bg-muted p-4 text-sm whitespace-pre-wrap font-mono">
-          {status}
-        </div>
-      )}
+      {/* Error */}
       {error && (
         <div className="rounded-md bg-destructive/10 border border-destructive/30 p-4 text-sm text-destructive">
           {error}
         </div>
       )}
+
+      <XamanSigningModal
+        open={modalOpen}
+        payload={signingPayload}
+        status={signingStatus}
+        txid={signingTxid}
+        title={modalTitle}
+        onClose={() => setModalOpen(false)}
+      />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Wallet, Smartphone, ExternalLink } from 'lucide-react'
+import { Wallet, Smartphone, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,23 +10,29 @@ import { isValidXrplAddress } from '@/lib/utils'
 
 /**
  * ConnectWallet — supports two modes:
- * 1. Xaman: opens deep-link / QR for mobile signing (non-custodial)
+ * 1. Xaman: signs in via the official Xaman SDK (PKCE OAuth2 flow)
  * 2. Read-only: enter an address to browse without signing
  */
 export function ConnectWallet() {
-  const { connect, network } = useWallet()
+  const { connect, network, connectWithXaman } = useWallet()
   const navigate = useNavigate()
 
   const [readOnlyAddress, setReadOnlyAddress] = useState('')
   const [addressError, setAddressError] = useState('')
+  const [xamanLoading, setXamanLoading] = useState(false)
+  const [xamanError, setXamanError] = useState<string | null>(null)
 
-  // In a real Xaman integration this would call the Xaman API to create a
-  // Sign-In payload and open the returned deep-link.  For the MVP we
-  // demonstrate the deep-link pattern and fall back to manual entry.
-  const handleXamanConnect = () => {
-    const xamanSignInUrl =
-      'https://xaman.app/sign/sign-in'
-    window.open(xamanSignInUrl, '_blank', 'noopener,noreferrer')
+  const handleXamanConnect = async () => {
+    setXamanLoading(true)
+    setXamanError(null)
+    try {
+      await connectWithXaman()
+      navigate('/')
+    } catch (err) {
+      setXamanError(err instanceof Error ? err.message : 'Xaman sign-in failed.')
+    } finally {
+      setXamanLoading(false)
+    }
   }
 
   const handleReadOnlyConnect = () => {
@@ -61,12 +67,28 @@ export function ConnectWallet() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button className="w-full gap-2" onClick={handleXamanConnect}>
-            <ExternalLink className="h-4 w-4" />
-            Open Xaman to sign in
+          <Button
+            className="w-full gap-2"
+            onClick={handleXamanConnect}
+            disabled={xamanLoading}
+          >
+            {xamanLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Waiting for Xaman…
+              </>
+            ) : (
+              <>
+                <Smartphone className="h-4 w-4" />
+                Sign in with Xaman
+              </>
+            )}
           </Button>
+          {xamanError && (
+            <p className="mt-2 text-xs text-destructive">{xamanError}</p>
+          )}
           <p className="mt-3 text-xs text-muted-foreground text-center">
-            After signing in Xaman, paste your address below.
+            A popup will open — scan the QR code in Xaman to sign in.
           </p>
         </CardContent>
       </Card>
