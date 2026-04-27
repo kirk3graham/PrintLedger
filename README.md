@@ -187,7 +187,7 @@ GitHub Actions workflow runs on every push to `main`/`develop` and on all pull r
 
 Contributions are welcome. Priority areas:
 - Improving testing coverage for XRPL flows
-- Real Xaman SDK integration (XUMM API payload creation)
+- Real Xaman SDK integration (Xaman API payload creation)
 - Enhancing 3D preview experience (Three.js STL/OBJ/GLB viewer)
 - Better metadata schema for 3D printing
 - Clio indexer integration for live browse/search

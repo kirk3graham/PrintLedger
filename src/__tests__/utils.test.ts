@@ -93,6 +93,6 @@ describe('percentToTransferFee', () => {
 describe('buildXamanDeepLink', () => {
   it('builds a valid Xaman deep-link URL', () => {
     const link = buildXamanDeepLink('test-uuid-123')
-    expect(link).toBe('https://xumm.app/sign/test-uuid-123')
+    expect(link).toBe('https://xaman.app/sign/test-uuid-123')
   })
 })

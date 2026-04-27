@@ -6,10 +6,10 @@ Ordered by impact and implementation readiness. Each section links to the releva
 
 ## 1. Xaman SDK Integration (High Priority)
 
-The current wallet flow builds a Xaman deep-link URL and opens it in a new tab. Replace this with the official [XUMM SDK](https://github.com/XRPL-Labs/XUMM-SDK) / [xumm-universal-sdk](https://github.com/XRPL-Labs/Xumm-Universal-SDK) to get real payload callbacks and signed transaction results.
+The current wallet flow builds a Xaman deep-link URL and opens it in a new tab. Replace this with the official [Xaman SDK](https://github.com/XRPL-Labs/Xumm-Universal-SDK) to get real payload callbacks and signed transaction results.
 
 **Files to update:**
-- `src/lib/utils.ts` — `buildXamanDeepLink()` → SDK `xumm.payload.create()`
+- `src/lib/utils.ts` — `buildXamanDeepLink()` → SDK `xaman.payload.create()`
 - `src/context/WalletContext.tsx` — subscribe to sign-in events from the SDK
 - `src/components/wallet/ConnectWallet.tsx` — show QR code / redirect modal returned by the SDK
 
