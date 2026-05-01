@@ -30,8 +30,11 @@ async function fetchSellOffers(client: Client, nfTokenId: string): Promise<XrplS
 
 function parseAmount(amount: XrplSellOffer['amount']): { price: number; currency: string } {
   if (typeof amount === 'string') {
+    // XRP amounts from the ledger are expressed in drops (integer strings).
+    // We store the raw drop value so callers can convert to XRP with /1_000_000.
     return { price: parseFloat(amount), currency: 'XRP' }
   }
+  // IOU amounts are decimal strings — store as-is.
   return { price: parseFloat(amount.value), currency: amount.currency }
 }
 

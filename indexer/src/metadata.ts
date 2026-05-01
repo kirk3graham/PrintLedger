@@ -38,9 +38,11 @@ function hexToUtf8(hex: string): string {
   return new TextDecoder().decode(bytes)
 }
 
-/** Return true if the string looks like a bare CID (CIDv0 or CIDv1). */
+/** Return true if the string looks like a bare IPFS CID (CIDv0 or CIDv1). */
 function looksLikeCid(str: string): boolean {
-  return /^(Qm[1-9A-HJ-NP-Za-km-z]{44,}|baf[a-z0-9]{50,})/.test(str)
+  // CIDv0: "Qm" + exactly 44 base-58 characters (total 46 chars)
+  // CIDv1: starts with "baf" followed by base32 characters (common Pinata format)
+  return /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(str) || /^baf[a-z2-7]{50,}$/.test(str)
 }
 
 /**

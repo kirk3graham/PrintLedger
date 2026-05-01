@@ -63,6 +63,7 @@ app.use('/api', publicLimiter, apiRouter)
 // ─── Global error handler ─────────────────────────────────────────────────────
 
 app.use((_err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[server] unhandled error:', _err)
   res.status(500).json({ error: 'Internal server error' })
 })
 

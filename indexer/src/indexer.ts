@@ -170,7 +170,10 @@ export async function reindexAccount(client: Client, account: string): Promise<{
       const nfTokenId = nft.NFTokenID
       const uri = nft.URI ?? ''
       const tokenTaxon = nft.NFTokenTaxon
-      const transferFee = 0  // TransferFee is not returned by account_nfts; default to 0
+      const transferFee = 0  // TransferFee is not returned by account_nfts.
+      // LIMITATION: the actual value is only available in the original NFTokenMint tx.
+      // Records created during re-index will have transferFee=0; live-stream records
+      // will have the correct value.  Update manually if needed.
       const flags = nft.Flags ?? 0
       const isBurnable = (flags & NFT_FLAG_BURNABLE) !== 0
 
@@ -194,7 +197,9 @@ export async function reindexAccount(client: Client, account: string): Promise<{
           isBurnable,
           previewImage: metadata?.imageUri ?? '',
           fullModelCid: metadata?.modelUri ?? '',
-          mintedAt: new Date(),
+          mintedAt: new Date(), // LIMITATION: account_nfts does not expose the original
+          // ledger close time.  The actual mint date requires fetching the NFTokenMint tx.
+          // Records indexed via re-index will show the re-index time as mintedAt.
           rawMetadata: metadata ? (metadata as unknown as InputJsonValue) : undefined,
         },
       })
@@ -275,6 +280,9 @@ async function reconnectWithBackoff(attempt = 0): Promise<void> {
   const delay = Math.min(1000 * Math.pow(2, attempt), 30_000)
   await new Promise((r) => setTimeout(r, delay))
   try {
+    // Clean up the old client before creating a new one to prevent multiple
+    // active subscriptions and memory leaks.
+    await stopIndexer()
     await startIndexer()
   } catch (err) {
     console.error(`[indexer] reconnect attempt ${attempt + 1} failed:`, err)

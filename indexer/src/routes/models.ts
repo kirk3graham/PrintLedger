@@ -203,7 +203,7 @@ router.post(
 
     if (account) {
       // Re-index a specific issuer account
-      if (!/^r[1-9A-HJ-NP-Za-km-z]{24,33}$/.test(account)) {
+      if (!/^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(account)) {
         sendError(res, 400, 'Invalid XRPL account address')
         return
       }
@@ -221,6 +221,7 @@ router.post(
 // ─── Error handler ────────────────────────────────────────────────────────────
 
 router.use((_err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[routes/models] unhandled error:', _err)
   sendError(res, 500, 'Internal server error')
 })
 
