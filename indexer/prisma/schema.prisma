@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Model {
+  id             String   @id @default(uuid())
+  nfTokenId      String   @unique
+  issuer         String
+  tokenTaxon     Int
+  uri            String
+  name           String
+  description    String
+  category       String   @default("")
+  tags           String[]
+  licenseType    String   @default("")
+  transferFee    Int      @default(0)
+  isBurnable     Boolean  @default(false)
+  previewImage   String   @default("")
+  fullModelCid   String   @default("")
+  mintedAt       DateTime
+  lastUpdated    DateTime @updatedAt
+  hasActiveOffer Boolean  @default(false)
+  currentPrice   Float?
+  priceCurrency  String   @default("XRP")
+  rawMetadata    Json?
+
+  offers         SellOffer[]
+
+  @@index([issuer])
+  @@index([tokenTaxon])
+  @@index([category])
+  @@index([hasActiveOffer])
+  @@index([mintedAt])
+}
+
+model SellOffer {
+  id          String   @id @default(uuid())
+  offerIndex  String   @unique
+  nfTokenId   String
+  amount      String
+  currency    String   @default("XRP")
+  destination String?
+  expiration  Int?
+  flags       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  model       Model    @relation(fields: [nfTokenId], references: [nfTokenId])
+
+  @@index([nfTokenId])
+  @@index([isActive])
+}
+
+// Tracks indexer cursor state so re-runs are idempotent
+model IndexerState {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

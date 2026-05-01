@@ -1,0 +1,17 @@
+import { PrismaClient } from '@prisma/client'
+
+// Re-use a single PrismaClient instance across hot-reloads in development
+declare global {
+  // eslint-disable-next-line no-var
+  var __prismaClient: PrismaClient | undefined
+}
+
+export const db: PrismaClient =
+  global.__prismaClient ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+  })
+
+if (process.env.NODE_ENV !== 'production') {
+  global.__prismaClient = db
+}
